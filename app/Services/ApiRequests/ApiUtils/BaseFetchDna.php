@@ -9,7 +9,7 @@ use App\Exceptions\ApiAccessLogFault;
 trait BaseFetchDna
 {
     use HttpServiceHelper;
-    protected function fetch($isAuth = false)
+    protected function fetch($isAuth = true)
     {
         $this->prepare(!$isAuth);
         $data = [
