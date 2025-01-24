@@ -65,9 +65,9 @@ class BaseJobService
 
     public function getGraphQLQueryForBlogs(): string
     {
-        return <<<'GRAPHQL'
-            query($limit: Int!, $after: String) {
-                blogs(first: $limit, after: $after) {
+        return <<<GRAPHQL
+            query(\$limit: Int!, \$after: String) {
+                blogs(first: \$limit, after: \$after) {
                     edges {
                         node {
                             id
@@ -75,10 +75,7 @@ class BaseJobService
                             title
                             updatedAt
                             commentPolicy
-                            feed {
-                                path
-                                location
-                            }
+                            feed { path location }
                             createdAt
                             templateSuffix
                             tags
@@ -88,9 +85,7 @@ class BaseJobService
                                         id
                                         title
                                         handle
-                                        author {
-                                            name
-                                        }
+                                        author { name }
                                         body
                                         isPublished
                                         publishedAt
@@ -114,11 +109,48 @@ class BaseJobService
                     pageInfo {
                         endCursor
                         hasNextPage
-                        hasPreviousPage
-                        startCursor
                     }
                 }
             }
-        GRAPHQL;
+            GRAPHQL;
+    }
+
+    public function getGraphQLQueryForCollections($collectionType): string
+    {
+        return <<<GRAPHQL
+                query(\$limit: Int!, \$after: String) {
+                    collections(first: \$limit, after: \$after, query: "collection_type:$collectionType") {
+                        edges {
+                            node {
+                                id
+                                description
+                                descriptionHtml
+                                title
+                                handle
+                                updatedAt
+                                sortOrder
+                                templateSuffix
+                                image {
+                                    id
+                                    height
+                                    width
+                                    url
+                                }
+                                products(first: 250) {
+                                    nodes {
+                                        id
+                                        title
+                                        handle
+                                    }
+                                }
+                            }
+                        }
+                        pageInfo {
+                            endCursor
+                            hasNextPage
+                        }
+                    }
+                }
+                GRAPHQL;
     }
 }

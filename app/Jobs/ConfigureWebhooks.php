@@ -13,20 +13,25 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use App\Traits\HttpServiceHelper;
+use function App\GlobalMethods\getShopifyHeadersForStore;
+use function App\GlobalMethods\getShopifyURLForStore;
 
-class ConfigureWebhooks implements ShouldQueue {
+class ConfigureWebhooks implements ShouldQueue
+{
 
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-    use FunctionTrait, RequestTrait;
+    use HttpServiceHelper;
 
-    private $store_id;
+    private $storeId;
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($store_id) {
-        $this->store_id = $store_id;
+    public function __construct($storeId)
+    {
+        $this->storeId = $storeId;
     }
 
     /**
@@ -34,29 +39,41 @@ class ConfigureWebhooks implements ShouldQueue {
      *
      * @return void
      */
-    public function handle() {
+    public function handle()
+    {
         try {
             Log::info('here in configure webhooks');
-            $store = Store::where('id', $this->store_id)->first();
+            $store = Store::where('id', $this->storeId)->first();
             $endpoint = getShopifyURLForStore('webhooks.json', $store);
             $headers = getShopifyHeadersForStore($store);
             $webhooks_config = config('custom.webhook_events');
-            foreach($webhooks_config as $topic => $url) {
-                $body = [
-                    'webhook' => [
-                        'topic' => $topic,
-                        'address' => config('app.url').'webhook/'.$url,
-                        'format' => 'json'
+            foreach ($webhooks_config as $topic => $url) {
+                $data = [
+                    'headers' => $headers,
+                    'json' => [
+                        'webhook' => [
+                            'topic' => $topic,
+                            'address' => config('app.url') . 'webhook/' . $url,
+                            'format' => 'json'
+                        ]
                     ]
                 ];
-                $response = $this->makeAnAPICallToShopify('POST', $endpoint, null, $headers, $body);
-                Log::info('Response for topic '.$topic);
+                [$status, $content, $statusCode] = $this->curlInit($endpoint, $data);
+
+                if (!$status || $statusCode != 200) {
+                    Log::error("Failed to fetch collections for store ID: {$this->storeId}, Status: {$statusCode}");
+                    return;
+                }
+
+                $response = json_decode($content);
+
+                Log::info('Response for topic ' . $topic);
                 Log::info($response['body']);
                 //You can write a logic to save this in the database table.
             }
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             //Log::info(json_encode($e->getTrace()));
-            Log::info('here in configure webhooks ' . $e->getMessage().' '.$e->getLine());
+            Log::info('here in configure webhooks ' . $e->getMessage() . ' ' . $e->getLine());
         }
     }
 }

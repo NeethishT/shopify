@@ -13,27 +13,16 @@ class ProductVariant extends Model
         'product_id',
         'shopify_variant_id',
         'title',
+        'display_name',
+        'image',
         'price',
+        'compare_at_price',
         'position',
         'inventory_policy',
-        'compare_at_price',
-        'option1',
-        'option2',
-        'option3',
-        'taxable',
-        'barcode',
-        'fulfillment_service',
-        'grams',
-        'inventory_management',
-        'requires_shipping',
-        'sku',
-        'weight',
-        'weight_unit',
-        'inventory_item_id',
         'inventory_quantity',
-        'old_inventory_quantity',
-        'admin_graphql_api_id',
-        'image_id'
+        'sku',
+        'variant_created_at',
+        'variant_updated_at'
     ];
 
     public function product()

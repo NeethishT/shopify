@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Store;
+use App\Models\Page;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -11,6 +12,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use App\Traits\HttpServiceHelper;
 use App\Jobs\BaseJobService;
+use Carbon\Carbon;
 
 class PageSyncJob implements ShouldQueue
 {
@@ -39,7 +41,6 @@ class PageSyncJob implements ShouldQueue
         $endpoint = "https://{$storeDetails['shop']}/admin/api/2025-01/graphql.json";
         $accessToken = $storeDetails['accessToken'];
 
-        $pages = [];
         $after = null;
         $limit = 250;
 
@@ -62,9 +63,33 @@ class PageSyncJob implements ShouldQueue
             $response = json_decode($content);
 
             if (isset($response->data->pages)) {
-                foreach ($response->data->pages->edges as $edge) {
-                    $pages[] = $edge->node;
+                $pageEdges = $response->data->pages->edges;
+
+                foreach ($pageEdges as $edge) {
+                    $pageData = $edge->node;
+
+                    $existingPage = Page::where('shopify_page_id', $pageData->id)->first();
+                    if ($existingPage) {
+                        $existingPage->delete();
+                    }
+
+                    Page::updateOrCreate(
+                        ['shopify_page_id' => $pageData->id],
+                        [
+                            'store_id' => $this->storeId,
+                            'shopify_page_id' => $pageData->id,
+                            'title' => $pageData->title ?? null,
+                            'handle' => $pageData->handle ?? null,
+                            'body' => $pageData->body ?? null,
+                            'body_summary' => $pageData->bodySummary ?? null,
+                            'is_published' => $pageData->isPublished ?? null,
+                            'page_published_at' => Carbon::parse($pageData->publishedAt)->toDateTimeString() ?? null,
+                            'page_created_at' => Carbon::parse($pageData->createdAt)->toDateTimeString() ?? null,
+                            'page_updated_at' => Carbon::parse($pageData->updatedAt)->toDateTimeString() ?? null,
+                        ]
+                    );
                 }
+
                 $after = '"' . $response->data->pages->pageInfo->endCursor . '"';
                 $hasNextPage = $response->data->pages->pageInfo->hasNextPage;
             } else {
@@ -73,11 +98,6 @@ class PageSyncJob implements ShouldQueue
             }
         } while ($hasNextPage);
 
-        $fileName = 'pages_' . now()->format('Ymd_His') . '.json';
-        $directoryPath = storage_path("app/{$storeDetails['shopName']}/pages");
-
-        $this->baseService->saveToFile($directoryPath, $fileName, $pages);
-
-        Log::info("Pages saved to file: {$fileName}");
+        Log::info("PageSyncJob completed for store ID: {$this->storeId}");
     }
 }

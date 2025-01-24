@@ -2,7 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\Store;
+use App\Models\Blog;
+use App\Models\Article;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,6 +13,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use App\Traits\HttpServiceHelper;
 use App\Jobs\BaseJobService;
+use Carbon\Carbon;
 
 class BlogSyncJob implements ShouldQueue
 {
@@ -58,9 +60,12 @@ class BlogSyncJob implements ShouldQueue
         // $trunc = Project::truncate();
 
         do {
+            $variables = ['limit' => $limit, 'after' => $after];
+            $query = $storeDetails = $this->baseService->getGraphQLQueryForBlogs();
+
             $requestData = [
-                "query" => $this->baseService->getGraphQLQueryForBlogs(),
-                "variables" => ['limit' => $limit, 'after' => $after]
+                'headers' => ['X-Shopify-Access-Token' => $accessToken],
+                'json' => ['query' => $query, 'variables' => $variables],
             ];
 
             [$status, $content, $statusCode] = $this->curlInit($endpoint, $requestData);
@@ -71,10 +76,58 @@ class BlogSyncJob implements ShouldQueue
             }
 
             $response = json_decode($content);
-            if (isset($response->data->blogs)) {
+
+            if (isset($response->data->blogs->edges)) {
                 foreach ($response->data->blogs->edges as $edge) {
-                    $blogs[] = $edge->node;
+                    $blogNode = $edge->node;
+
+                    Blog::where('shopify_blog_id', $blogNode->id)->delete();
+                    $blogData = [
+                        'shopify_blog_id' => $blogNode->id,
+                        'title' => $blogNode->title,
+                        'handle' => $blogNode->handle,
+                        'tags' => implode(',', $blogNode->tags ?? []),
+                        'template_suffix' => $blogNode->templateSuffix ?? null,
+                        'blog_created_at' => Carbon::parse($blogNode->createdAt)->toDateTimeString(),
+                        'blog_updated_at' => Carbon::parse($blogNode->updatedAt)->toDateTimeString(),
+                        'store_id' => $this->storeId
+                    ];
+
+                    $blog = Blog::updateOrCreate(
+                        ['shopify_blog_id' => $blogNode->id],
+                        $blogData
+                    );
+
+                    foreach ($blogNode->articles->edges as $articleEdge) {
+                        $articleNode = $articleEdge->node;
+
+                        $articleData = [
+                            'store_id' => $this->storeId,
+                            'blog_id' => $blog->id,
+                            'shopify_article_id' => $articleNode->id,
+                            'title' => $articleNode->title ?? null,
+                            'handle' => $articleNode->handle ?? null,
+                            'author' => $articleNode->author->name ?? 'Unknown',
+                            'body_html' => $articleNode->body ?? null,
+                            'tags' => implode(',', $articleNode->tags ?? []),
+                            'is_published' => $articleNode->isPublished ?? false,
+                            'template_suffix' => $articleNode->templateSuffix ?? null,
+                            'article_published_at' => $articleNode->publishedAt ? Carbon::parse($articleNode->publishedAt)->toDateTimeString() : null,
+                            'article_created_at' => Carbon::parse($articleNode->createdAt)->toDateTimeString(),
+                            'article_updated_at' => Carbon::parse($articleNode->updatedAt)->toDateTimeString(),
+                            'image_id' => $articleNode->image->id ?? null,
+                            'image_url' => $articleNode->image->url ?? null,
+                            'image_height' => $articleNode->image->height ?? null,
+                            'image_width' => $articleNode->image->width ?? null,
+                        ];
+
+                        Article::updateOrCreate(
+                            ['shopify_article_id' => $articleNode->id],
+                            $articleData
+                        );
+                    }
                 }
+
                 $after = '"' . $response->data->blogs->pageInfo->endCursor . '"';
                 $hasNextPage = $response->data->blogs->pageInfo->hasNextPage;
             } else {

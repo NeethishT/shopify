@@ -12,9 +12,9 @@ class ProductImage extends Model
     protected $fillable = [
         'product_id',
         'shopify_image_id',
-        'position',
-        'src',
-        'admin_graphql_api_id'
+        'height',
+        'width',
+        'url',
     ];
 
     public function product()

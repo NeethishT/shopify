@@ -10,17 +10,21 @@ class Page extends Model
     use HasFactory;
 
     protected $fillable = [
-        'author',
-        'body_html',
-        'created_at',
-        'handle',
-        'metafield',
-        'published_at',
-        'shop_id',
-        'template_suffix',
+        'store_id',
+        'shopify_page_id',
         'title',
-        'updated_at',
-        'admin_graphql_api_id',
-        'store_id'
+        'handle',
+        'body',
+        'body_summary',
+        'is_published',
+        'template_suffix',
+        'page_published_at',
+        'page_created_at',
+        'page_updated_at'
     ];
+
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
+    }
 }

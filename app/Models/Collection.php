@@ -11,24 +11,28 @@ class Collection extends Model
 
     protected $fillable = [
         'store_id',
-        'name',
+        'shopify_collection_id',
+        'title',
         'handle',
-        'collection_type',
-        'collection_id'
+        'description',
+        'description_html',
+        'sort_order',
+        'template_suffix',
+        'store_products_ids',
+        'shopify_products_ids',
+        'shopify_products_title',
+        'shopify_products_handle',
+        'image_id',
+        'image_url',
+        'image_width',
+        'image_height',
+        'collection_published_at',
+        'collection_created_at',
+        'collection_updated_at'
     ];
 
     public function store()
     {
         return $this->belongsTo(Store::class);
-    }
-
-    public function customCollection()
-    {
-        return $this->hasOne(CustomCollection::class, 'collection_id', 'collection_id');
-    }
-
-    public function smartCollection()
-    {
-        return $this->hasOne(SmartCollection::class, 'collection_id', 'collection_id');
     }
 }

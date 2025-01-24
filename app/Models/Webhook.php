@@ -12,6 +12,7 @@ class Webhook extends Model
     protected $table = 'webhooks';
     protected $fillable = [
         'store_id',
+        'access_token',
         'topic',
         'endpoint',
         'status',

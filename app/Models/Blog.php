@@ -10,17 +10,13 @@ class Blog extends Model
     use HasFactory;
 
     protected $fillable = [
-        'commentable',
-        'created_at',
-        'feedburner',
-        'feedburner_location',
+        'shopify_blog_id',
+        'title',
         'handle',
-        'shopify_id',
         'tags',
         'template_suffix',
-        'title',
-        'updated_at',
-        'admin_graphql_api_id',
+        'blog_created_at',
+        'blog_updated_at',
         'store_id'
     ];
 
